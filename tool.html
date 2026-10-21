@@ -1,1 +1,2718 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@4.0.0/dist/cytoscape-dagre.js"></script>
 
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>MAS-Map — Analyse et Distribution des SMA</title>
+        <style>
+            
+            @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap');
+            :root
+            {
+                --bg: #0a0c10;
+                --surface: #111318;
+                --surface2: #181c24;
+                --border: #252a36;
+                --accent: #00e5ff;
+                --accent2: #ff4b6e;
+                --accent3: #a78bfa;
+                --accent4: #34d399;
+                --text: #e2e8f0;
+                --text-muted: #64748b;
+                --text-dim: #94a3b8;
+                --warn: #fbbf24;
+                --critical: #ef4444;
+                --neutral: #34d399;
+            }
+
+            *
+            {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body
+            {
+                font-family: 'Space Mono', monospace;
+                background: var(--bg);
+                color: var(--text);
+                min-height: 100vh;
+                overflow-x: hidden;
+            }
+
+            /* HEADER */
+            header
+            {
+                border-bottom: 1px solid var(--border);
+                padding: 20px 40px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                position: sticky;
+                top: 0;
+                background: rgba(10,12,16,0.95);
+                backdrop-filter: blur(12px);
+                z-index: 100;
+            }
+
+            .logo
+            {
+                font-family: 'Syne', sans-serif;
+                font-weight: 800;
+                font-size: 22px;
+                letter-spacing: -0.5px;
+            }
+
+            .logo span
+            {
+                color: var(--accent);
+            }
+
+            .step-nav
+            {
+                display: flex;
+                gap: 4px;
+            }
+
+            .step-btn
+            {
+                font-family: 'Space Mono', monospace;
+                font-size: 11px;
+                padding: 7px 16px;
+                border: 1px solid var(--border);
+                background: transparent;
+                color: var(--text-muted);
+                cursor: pointer;
+                transition: all 0.2s;
+                letter-spacing: 0.5px;
+            }
+
+            .step-btn:hover
+            {
+                border-color: var(--accent);
+                color: var(--accent);
+            }
+
+            .step-btn.active
+            {
+                background: var(--accent);
+                border-color: var(--accent);
+                color: var(--bg);
+                font-weight: 700;
+            }
+
+            /* MAIN LAYOUT */
+            main
+            {
+                display: flex;
+                min-height: calc(100vh - 65px);
+            }
+
+            .panel
+            {
+                display: none;
+                width: 100%;
+                padding: 40px;
+                animation: fadeIn 0.3s ease;
+            }
+
+            .panel.active
+            {
+                display: flex;
+                flex-direction: column;
+                gap: 32px;
+            }
+
+            @keyframes fadeIn
+            {
+                from
+                {
+                    opacity: 0;
+                    transform: translateY(8px);
+                }
+
+                to
+                {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+
+            }
+
+            /* SECTION TITLES */
+            .section-title
+            {
+                font-family: 'Syne', sans-serif;
+                font-size: 28px;
+                font-weight: 800;
+                color: var(--text);
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .section-title .tag
+            {
+                font-family: 'Space Mono', monospace;
+                font-size: 11px;
+                font-weight: 400;
+                background: var(--accent);
+                color: var(--bg);
+                padding: 4px 10px;
+                letter-spacing: 1px;
+            }
+
+            .section-desc
+            {
+                color: var(--text-muted);
+                font-size: 13px;
+                line-height: 1.7;
+                max-width: 700px;
+                margin-top: -20px;
+            }
+
+            /* CARDS */
+            .card
+            {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                padding: 24px;
+            }
+
+            .card-title
+            {
+                font-family: 'Syne', sans-serif;
+                font-size: 13px;
+                font-weight: 700;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                color: var(--accent);
+                margin-bottom: 16px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            /* GRID */
+            .grid-2
+            {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+            }
+
+            .grid-3
+            {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 16px;
+            }
+
+            /* FORM ELEMENTS */
+            .form-row
+            {
+                display: flex;
+                gap: 12px;
+                margin-bottom: 12px;
+                align-items: flex-start;
+            }
+
+            .form-group
+            {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                flex: 1;
+            }
+
+            .form-group label
+            {
+                font-size: 11px;
+                color: var(--text-muted);
+                letter-spacing: 1px;
+                text-transform: uppercase;
+            }
+
+            input, select, textarea
+            {
+                font-family: 'Space Mono', monospace;
+                font-size: 12px;
+                background: var(--bg);
+                border: 1px solid var(--border);
+                color: var(--text);
+                padding: 9px 12px;
+                outline: none;
+                transition: border-color 0.2s;
+                width: 100%;
+            }
+
+            input:focus, select:focus, textarea:focus
+            {
+                border-color: var(--accent);
+            }
+
+            select option
+            {
+                background: var(--bg);
+            }
+
+            /* BUTTONS */
+            .btn
+            {
+                font-family: 'Space Mono', monospace;
+                font-size: 12px;
+                padding: 10px 20px;
+                border: 1px solid var(--border);
+                cursor: pointer;
+                transition: all 0.2s;
+                letter-spacing: 0.5px;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                background: transparent;
+                color: var(--text);
+            }
+
+            .btn:hover
+            {
+                border-color: var(--accent);
+                color: var(--accent);
+            }
+
+            .btn-primary
+            {
+                background: var(--accent);
+                color: var(--bg);
+                border-color: var(--accent);
+                font-weight: 700;
+            }
+
+            .btn-primary:hover
+            {
+                background: #00c4db;
+                color: var(--bg);
+                border-color: #00c4db;
+            }
+
+            .btn-danger
+            {
+                border-color: var(--critical);
+                color: var(--critical);
+            }
+
+            .btn-danger:hover
+            {
+                background: var(--critical);
+                color: white;
+            }
+
+            .btn-sm
+            {
+                padding: 6px 12px;
+                font-size: 11px;
+            }
+
+            /* ENTITY / ACTION LIST */
+            .entity-list, .action-list
+            {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .entity-item, .action-item
+            {
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                padding: 12px 16px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                transition: border-color 0.2s;
+            }
+
+            .entity-item:hover, .action-item:hover
+            {
+                border-color: var(--border);
+            }
+
+            .entity-item .name
+            {
+                font-family: 'Syne', sans-serif;
+                font-weight: 700;
+                color: var(--accent);
+                font-size: 14px;
+            }
+
+            .entity-item .meta, .action-item .meta
+            {
+                font-size: 11px;
+                color: var(--text-muted);
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+            }
+
+            .badge
+            {
+                font-size: 10px;
+                padding: 2px 8px;
+                border: 1px solid;
+                letter-spacing: 0.5px;
+            }
+
+            .badge-blue
+            {
+                border-color: var(--accent);
+                color: var(--accent);
+            }
+
+            .badge-red
+            {
+                border-color: var(--accent2);
+                color: var(--accent2);
+            }
+
+            .badge-green
+            {
+                border-color: var(--accent4);
+                color: var(--accent4);
+            }
+
+            .badge-purple
+            {
+                border-color: var(--accent3);
+                color: var(--accent3);
+            }
+
+            .badge-warn
+            {
+                border-color: var(--warn);
+                color: var(--warn);
+            }
+
+            /* GRAPH */
+            #graph-canvas
+            {
+                width: 100%;
+                height: 560px;
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                position: relative;
+                overflow: hidden;
+            }
+
+            svg#graph-svg
+            {
+                width: 100%;
+                height: 100%;
+            }
+
+            /* RULES */
+            .rule-item
+            {
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                padding: 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                transition: border-color 0.2s;
+            }
+
+            .rule-item.enabled
+            {
+                border-left: 3px solid var(--accent4);
+            }
+
+            .rule-item.disabled
+            {
+                border-left: 3px solid var(--border);
+                opacity: 0.5;
+            }
+
+            .rule-header
+            {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+            }
+
+            .rule-name
+            {
+                font-family: 'Syne', sans-serif;
+                font-weight: 700;
+                font-size: 13px;
+            }
+
+            .rule-condition
+            {
+                font-size: 11px;
+                color: var(--text-muted);
+                font-style: italic;
+                line-height: 1.5;
+                padding: 8px 12px;
+                background: var(--bg);
+                border-left: 2px solid var(--accent3);
+            }
+
+            .rule-conclusion
+            {
+                font-size: 11px;
+                color: var(--accent4);
+            }
+
+            /* TOGGLE */
+            .toggle
+            {
+                position: relative;
+                width: 40px;
+                height: 22px;
+                flex-shrink: 0;
+            }
+
+            .toggle input
+            {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+
+            .toggle-slider
+            {
+                position: absolute;
+                cursor: pointer;
+                inset: 0;
+                background: var(--border);
+                transition: 0.2s;
+            }
+
+            .toggle-slider:before
+            {
+                content: '';
+                position: absolute;
+                width: 16px;
+                height: 16px;
+                left: 3px;
+                bottom: 3px;
+                background: var(--text-muted);
+                transition: 0.2s;
+            }
+
+            input:checked + .toggle-slider
+            {
+                background: var(--accent4);
+            }
+
+            input:checked + .toggle-slider:before
+            {
+                transform: translateX(18px);
+                background: white;
+            }
+
+            /* RECOMMENDATIONS */
+            .rec-item
+            {
+                border: 1px solid var(--border);
+                padding: 20px;
+                background: var(--surface2);
+                display: flex;
+                gap: 16px;
+                animation: fadeIn 0.4s ease both;
+            }
+
+            .rec-item.critical
+            {
+                border-color: var(--critical);
+            }
+
+            .rec-item.warn
+            {
+                border-color: var(--warn);
+            }
+
+            .rec-item.good
+            {
+                border-color: var(--accent4);
+            }
+
+            .rec-icon
+            {
+                font-size: 24px;
+                flex-shrink: 0;
+            }
+
+            .rec-body
+            {
+                flex: 1;
+            }
+
+            .rec-title
+            {
+                font-family: 'Syne', sans-serif;
+                font-weight: 700;
+                font-size: 14px;
+                margin-bottom: 6px;
+            }
+
+            .rec-desc
+            {
+                font-size: 12px;
+                color: var(--text-dim);
+                line-height: 1.6;
+            }
+
+            .rec-rule
+            {
+                font-size: 11px;
+                color: var(--text-muted);
+                margin-top: 8px;
+                font-style: italic;
+            }
+
+            /* SUMMARY STATS */
+            .stat-grid
+            {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 16px;
+            }
+
+            .stat-card
+            {
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                padding: 20px;
+                text-align: center;
+            }
+
+            .stat-val
+            {
+                font-family: 'Syne', sans-serif;
+                font-size: 36px;
+                font-weight: 800;
+                color: var(--accent);
+                line-height: 1;
+                margin-bottom: 6px;
+            }
+
+            .stat-label
+            {
+                font-size: 11px;
+                color: var(--text-muted);
+                letter-spacing: 1px;
+                text-transform: uppercase;
+            }
+
+            /* TOAST */
+            #toast
+            {
+                position: fixed;
+                bottom: 32px;
+                left: 50%;
+                transform: translateX(-50%) translateY(20px);
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                color: var(--text);
+                font-size: 13px;
+                padding: 12px 24px;
+                z-index: 9999;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.25s, transform 0.25s;
+                white-space: nowrap;
+            }
+
+            #toast.show
+            {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+
+            #toast.success
+            {
+                border-color: var(--accent4);
+                color: var(--accent4);
+            }
+
+            #toast.error
+            {
+                border-color: var(--critical);
+                color: var(--critical);
+            }
+
+            /* SCROLLBAR */
+            ::-webkit-scrollbar
+            {
+                width: 4px;
+            }
+
+            ::-webkit-scrollbar-track
+            {
+                background: var(--bg);
+            }
+
+            ::-webkit-scrollbar-thumb
+            {
+                background: var(--border);
+            }
+
+            /* DIVIDER */
+            .divider
+            {
+                border: none;
+                border-top: 1px solid var(--border);
+            }
+
+            /* EMPTY STATE */
+            .empty
+            {
+                text-align: center;
+                padding: 60px;
+                color: var(--text-muted);
+                font-size: 13px;
+            }
+
+            .empty span
+            {
+                display: block;
+                font-size: 32px;
+                margin-bottom: 12px;
+            }
+
+            /* NAV ACTIONS */
+            .panel-footer
+            {
+                display: flex;
+                justify-content: flex-end;
+                gap: 12px;
+                padding-top: 8px;
+                border-top: 1px solid var(--border);
+            }
+
+            /* TOOLTIP */
+            [data-tip]
+            {
+                position: relative;
+            }
+
+            [data-tip]:hover::after
+            {
+                content: attr(data-tip);
+                position: absolute;
+                bottom: calc(100% + 6px);
+                left: 50%;
+                transform: translateX(-50%);
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                color: var(--text-dim);
+                font-size: 11px;
+                padding: 6px 10px;
+                white-space: nowrap;
+                z-index: 200;
+                pointer-events: none;
+            }
+
+            .tag-row
+            {
+                display: flex;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+
+            /* Graph legend */
+            .graph-legend
+            {
+                display: flex;
+                gap: 20px;
+                font-size: 11px;
+                color: var(--text-muted);
+                align-items: center;
+                flex-wrap: wrap;
+            }
+
+            .legend-item
+            {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .legend-dot
+            {
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+            }
+        </style>
+    </head>
+    
+
+    <body>
+        <header>
+            <div class="logo">
+                MAS
+                <span>-Map</span>
+            </div>
+            <nav class="step-nav">
+                <button class="step-btn active" onclick="goToStep(0)">01 · Entities</button>
+                <button class="step-btn" onclick="goToStep(1)">02 · Actions</button>
+                <button class="step-btn" onclick="goToStep(2)">03 · Graph</button>
+                <button class="step-btn" onclick="goToStep(3)">04 · Rules</button>
+                <button class="step-btn" onclick="goToStep(4)">05 · Recommendations</button>
+            </nav>
+            <div style="display:flex;gap:8px">
+                <button class="btn btn-sm" onclick="exportJSON()" style="border-color:var(--accent4);color:var(--accent4)" title="Export the model as JSON">↓ Export JSON</button>
+                <button class="btn btn-sm" onclick="document.getElementById('import-input').click()" style="border-color:var(--accent3);color:var(--accent3)" title="Import a JSON model">↑ Import JSON</button>
+                <input id="import-input" type="file" accept=".json" style="display:none" onchange="importJSON(event)">
+            </div>
+        </header>
+
+        <main>
+
+        <!-- =================== STEP 1 : Entity =================== -->
+            <section class="panel active" id="panel-0">
+                <div>
+
+                    <div class="section-title">
+                        <span class="tag">01</span>
+                        Entity Description
+                    </div>
+                    <br>
+                    <p class="section-desc">
+                        Define the core components of your MAS: autonomous agents and environmental elements.
+                    </p>
+                </div>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title">
+                            ➕ New Entity
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <!-- === Entity name === -->
+                                <label>Name / Class</label>
+                                <input id="e-name" type="text" placeholder="e.g., Ant">
+                            </div>
+                            <div class="form-group" style="max-width:130px">
+                                <!-- === Entity population === -->
+                                <label>Population</label>
+                                <input id="e-pop" type="number" placeholder="1000" min="0">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Population Growth</label>
+                                <!-- === Population growth === -->
+                                <select id="e-evol">
+                                    <option value="fixed">Fixed</option>
+                                    <option value="variable">Variable</option>
+                                    <option value="increasing">Increasing</option>
+                                    <option value="decreasing">Decreasing</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <!-- === Mobility === -->
+                                <label>Mobility</label>
+                                <select id="e-mob">
+                                    <option value="false">Immobile</option>
+                                    <option value="true">Mobile</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <!-- === Resources === -->
+                                <label>Resources</label>
+                                <select id="e-rsrc">
+                                    <option value="none">None</option>
+                                    <option value="low">Low</option>
+                                    <option value="moderate">Moderate</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- === Add entity / Cancel buttons === -->
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <button class="btn btn-primary" id="e-submit-btn" onclick="submitEntity()">+ Add Entity</button>
+                            <button class="btn" id="e-cancel-btn" onclick="cancelEditEntity()" style="display:none;border-color:var(--text-muted);color:var(--text-muted)">✕ Cancel</button>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">
+                            📋 Defined Entities
+                            <span id="entity-count" style="color:var(--text-muted);font-weight:400">0</span>
+                        </div>
+                        <div class="entity-list" id="entity-list">
+                            <div class="empty">
+                                <span>🧩</span>
+                                No entities defined
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- === Load Foraging model === -->
+                <div class="card" style="background:var(--surface2);border-color:var(--accent3)">
+                    <div class="card-title" style="color:var(--accent3)">
+                        💡 Quick Example — Foraging
+                    </div>
+                    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
+                        Automatically load the foraging model from the MAS-Map paper (40×40 grid, 10 ants, 50 food units, one pheromone per cell) to test the tool.
+                    </p>
+                    <button class="btn" onclick="loadForagingModel()" style="border-color:var(--accent3);color:var(--accent3)">⚡ Load the Foraging Model</button>
+                </div>
+
+                <div class="panel-footer">
+                    <button class="btn btn-primary" onclick="goToStep(1)">Next Step: Actions →</button>
+                </div>
+            </section>
+
+        <!-- =================== STEP 2 : ACTIONS =================== -->
+
+            <section class="panel" id="panel-1">
+                <div>
+                    <div class="section-title">
+                        <span class="tag">02</span> Action Description
+                    </div>
+                    <br>
+                    <p class="section-desc">Define the elementary operations connecting the entities in your model.</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">➕ New Action</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <!-- === Action name === -->
+                            <label>Action Name</label>
+                            <input id="a-name" type="text" placeholder="e.g., perceive_pheromones">
+                        </div>
+                        <div class="form-group">
+                            <!-- === Action sender === -->
+                            <label>From</label>
+                            <select id="a-from"><option value="">— select —</option></select>
+                        </div>
+                        <div class="form-group">
+                            <!-- === Action receiver === -->
+                            <label>To</label>
+                            <select id="a-to"><option value="">— select —</option></select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <!-- === Type of exchanged value === -->
+                            <label>Exchange Type</label>
+                            <select id="a-echg">
+                                <option value="numeric_value">Numeric Value</option>
+                                <option value="position_vector">Position Vector</option>
+                                <option value="resource_block">Resource Block</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <!-- === Data "quality" === -->
+                            <label>Granularity</label> 
+                            <select id="a-gran"> 
+                                <option value="presence_absence">Presence/Absence</option>
+                                <option value="approximate_value">Approximate Value</option>
+                                <option value="precise_value">Precise Value</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <!-- === Distance required between entities to trigger this action === -->
+                            <label>Spatial Range</label>
+                            <select id="a-port">
+                                <option value="local">Local</option>
+                                <option value="sector">Sector</option>
+                                <option value="global">Global</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <!-- === Action frequency === -->
+                            <label>Frequency</label>
+                            <select id="a-ryth">
+                                <option value="rare">Rare</option>
+                                <option value="occasional">Occasional</option>
+                                <option value="frequent">Frequent</option>
+                                <option value="continuous">Continuous</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <!-- === Action causes consultation or modification === -->
+                            <label>Interaction Type</label>
+                            <select id="a-inter">
+                                <option value="modification">Modification</option>
+                                <option value="consultation">Consultation</option>
+                                <option value="transfer">Transfer</option>
+                                <option value="creation">Creation</option>
+                                <option value="destruction">Destruction</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <!-- === Previous actions required for this action to occur === -->
+                            <label>Dependencies (names, comma-separated)</label>
+                            <input id="a-dep" type="text" placeholder="e.g., move_randomly">
+                        </div>
+                    </div>
+
+                    <!-- === Add action / Cancel buttons === -->
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <button class="btn btn-primary" id="a-submit-btn" onclick="submitAction()">+ Add Action</button>
+                        <button class="btn" id="a-cancel-btn" onclick="cancelEditAction()" style="display:none;border-color:var(--text-muted);color:var(--text-muted)">✕ Cancel</button>
+                    </div>
+
+                </div>
+
+                <div class="card">
+                    <div class="card-title">⚡ Defined Actions 
+                        <span id="action-count" style="color:var(--text-muted);font-weight:400">0</span>
+                    </div>
+                    <div class="action-list" id="action-list">
+                        <div class="empty"><span>⚡</span>No actions defined</div>
+                    </div>
+                </div>
+
+                <div class="panel-footer">
+                    <button class="btn" onclick="goToStep(0)">← Back</button>
+                    <button class="btn btn-primary" onclick="goToStep(2)">Next Step: Graph →</button>
+                </div>
+            </section>
+
+        <!-- =================== STEP 3 : GRAPHES =================== -->
+
+            <section class="panel" id="panel-2">
+                <div>
+                    <div class="section-title"><span class="tag">03</span> Model Graphs</div>
+                    <br>
+                    <p class="section-desc">Two formal representations of the MAS. Hover over elements to view details.</p>
+                </div>
+
+                <!-- GRAPH 1: Entities–Actions -->
+                <div class="card" style="padding:20px">
+
+                    <div class="card-title">G = (E, A) — Entities–Actions Graph
+                        <span style="margin-left:auto;display:flex;gap:16px;align-items:center">
+                            <div class="graph-legend">
+                                <div class="legend-item">
+                                    <div class="legend-dot" style="background:var(--accent)"></div> 
+                                    Mobile
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-dot" style="background:var(--accent3)"></div>
+                                    Static
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-dot" style="background:var(--critical)"></div>
+                                    Critical
+                                </div>
+                                <div class="legend-item">
+                                    <div style="width:24px;height:2px;background:var(--accent2);display:inline-block"></div> Modification
+                                </div>
+                                <div class="legend-item">
+                                    <div style="width:24px;height:2px;border-top:2px dashed var(--accent);display:inline-block"></div> Consultation
+                                </div>
+                            </div>
+                        </span>
+                    </div>
+
+                    <div id="graph-canvas" style="width:100%;height:480px;background:var(--bg);border:1px solid var(--border);position:relative;overflow:hidden">
+
+                        <svg id="graph-svg" width="100%" height="100%"></svg>
+                    
+                    </div>
+                </div>
+
+                <!-- GRAPH 2: Action Dependencies -->
+                <div class="card" style="padding:20px">
+                    <div class="card-title">G<sub style="font-size:10px">A</sub> = (A, D) — Action Dependency Graph
+                        <span style="margin-left:auto;display:flex;gap:16px;align-items:center">
+                            <div class="graph-legend">
+                                <div class="legend-item">
+                                    <div style="width:24px;height:2px;background:var(--accent3);display:inline-block"></div> 
+                                    Dependency
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-dot" style="background:var(--surface2);border:1px solid var(--accent4)"></div>
+                                    Root
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-dot" style="background:var(--surface2);border:1px solid var(--accent)"></div>
+                                    Intermediate
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-dot" style="background:var(--surface2);border:1px solid var(--accent2)"></div>
+                                    Leaf
+                                </div>
+                            </div>
+                        </span>
+                    </div>
+
+                    <div id="dep-canvas" style="width:100%;min-height:360px;background:var(--bg);border:1px solid var(--border);position:relative;overflow:auto">
+
+                        <svg id="dep-svg" width="100%" height="100%"></svg>
+
+                    </div>
+                </div>
+
+                <div class="panel-footer">
+                    <button class="btn" onclick="goToStep(1)">← Back</button>
+                    <button class="btn btn-primary" onclick="goToStep(3)">Next Step: Rules →</button>
+                </div>
+            </section>
+
+        <!-- =================== STEP 4 : RULES =================== -->
+            <section class="panel" id="panel-3">
+                <div>
+                    <div class="section-title"><span class="tag">04</span> Inference Rules</div>
+                    <br>
+                    <p class="section-desc">Enable, disable, or modify the qualitative rules applied during structural analysis.</p>
+                </div>
+
+                <div id="rules-list" style="display:flex;flex-direction:column;gap:12px"></div>
+
+                <div class="panel-footer">
+                    <button class="btn" onclick="goToStep(2)">← Back</button>
+                    <button class="btn btn-primary" onclick="goToStep(4);runAnalysis()">Analyze & Recommendations →</button>
+                </div>
+            </section>
+
+        <!-- =================== STEP 5 : RECOMMANDATIONS =================== -->
+            <section class="panel" id="panel-4">
+                <div>
+                    <div class="section-title"><span class="tag">05</span> Distribution Recommendations</div>
+                    <br>
+                    <p class="section-desc">Results of the structural analysis. These results are formal indicators — contextual interpretation is required.</p>
+                </div>
+
+                <div class="stat-grid" id="rec-stats"></div>
+
+                <div id="rec-list" style="display:flex;flex-direction:column;gap:12px">
+                    <div class="empty"><span>🔍</span>Run the analysis to view recommendations.</div>
+                </div>
+
+                <div class="panel-footer">
+                    <button class="btn" onclick="goToStep(3)">← Back</button>
+                    <button class="btn btn-primary" onclick="runAnalysis()">↻ Run Analysis Again</button>
+                </div>
+            </section>
+
+        <div id="toast"></div>
+    <!-- 
+
+    // ===============================================
+    //                      SCRIPT JS 
+    // ===============================================
+    --> 
+
+
+<script>
+    
+    /* 
+    * Displays a temporary toast notification with a message and a style based on the given type.
+    * The notification automatically disappears after the specified duration.
+    */
+    function showToast(msg, type = 'success', duration = 3000) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'show ' + type;
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => { t.className = ''; }, duration);
+    }
+
+    // ===============================================
+    //  CENTRAL STATE — Single JSON model
+    // ===============================================
+        let model = { entites: [], actions: [] };
+
+        // Readable shortcuts used throughout the code
+        const R_PLUS  = ['frequent', 'continuous'];
+        const R_MINUS = ['rare', 'occasional'];//, 'ponctuel'];
+
+        Object.defineProperty(window, 'entities', { get: () => model.entites });
+        Object.defineProperty(window, 'actions',  { get: () => model.actions });
+
+        /*
+        * Renders all application components by updating the entity list, action list, and graphs.
+        * Calls each rendering function to refresh the complete user interface.
+        */
+        function renderAll() {
+            renderEntityList();
+            renderActionList();
+            renderGraph();      
+            renderDepGraph();
+        }
+
+    // ===============================================
+    //  IMPORT / EXPORT JSON
+    // ===============================================
+        /*
+         * Exports the current model data as a JSON file.
+         * Creates a downloadable file from the model object and notifies the user once the export is completed.
+         */
+        function exportJSON() {
+            const blob = new Blob([JSON.stringify(model, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+
+            a.href = url;
+            a.download = 'mas-map-model.json';
+            a.click();
+
+            URL.revokeObjectURL(url);
+            showToast('✓ Model exported');
+        }
+
+        /*
+         * Imports a model from a JSON file selected by the user.
+         * Parses the file, normalizes the data format, updates the model, refreshes the UI, and displays the import status.
+         */
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+
+            reader.onload = e => {
+                try {
+                    const data = JSON.parse(e.target.result);
+
+                    // Accepts both formats: { entites, actions } or { entities, actions }
+                    model.entites = data.entites || data.entities || [];
+                    model.actions = data.actions || [];
+
+                    // Normalize keys if the JSON comes from an older format
+                    model.entites = model.entites.map(normalizeEntity);
+                    model.actions  = model.actions.map(normalizeAction);
+
+                    cancelEditEntity();
+                    cancelEditAction();
+                    renderAll();
+                    showToast(`✓ Model imported — ${model.entites.length} entities, ${model.actions.length} actions`);
+                } catch {
+                    showToast('⚠ Invalid JSON file', 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; 
+        }
+
+        /*
+         * Normalize an entity to the target JSON schema
+         */
+        function normalizeEntity(e) {
+            return {
+                nom:                    e.nom || e.name || '',
+                population:             e.population ?? e.pop ?? 0,
+                population_evolution:   e.population_evolution || e.evol || 'fixed',
+                mobility:               e.mobility ?? e.mob ?? false,
+                agent_weight:           e.agent_weight || e.rsrc || 'none',
+                localisation_initiale:  e.localisation_initiale || 'fixed',
+            };
+        }
+
+        /*
+        * Normalize an action to the target JSON schema
+        */
+        function normalizeAction(a) {
+            return {
+                name:                   a.name || '',
+                from:                   a.from || '',
+                to:                     a.to   || '',
+                exchange_type:          a.exchange_type || a.echg || 'numeric_value',
+                information_granularity: a.information_granularity || a.gran || 'approximate_value',
+                spatial_range:          a.spatial_range || a.port || 'local',
+                natural_frequency:      a.natural_frequency || a.ryth || 'rare',
+                interaction_type:       a.interaction_type || a.inter || 'modification',
+                required_predecessors:  a.required_predecessors || a.dep || [],
+            };
+        }
+    // ===============================================
+    //  NAVIGATION
+    // ===============================================
+        /*
+         * Navigation to the next panel
+         * 
+         */
+        function goToStep(i) {
+
+            document.querySelectorAll('.panel').forEach((p, idx) => {
+                p.classList.toggle('active', idx === i);
+            });
+
+            document.querySelectorAll('.step-btn').forEach((b, idx) => {
+                b.classList.toggle('active', idx === i);
+            });
+
+            if (i === 1)  refreshActionEntitySelects();
+            if (i === 2){ renderGraph(); renderDepGraph();}
+            if (i === 3)  renderRules(); 
+
+        }
+
+
+    // ===============================================
+    //  ENTITIES
+    // ===============================================
+    
+        let editingEntityIndex = null;
+
+        /*
+        * "Add / Update" entity button
+        */
+        function submitEntity() {
+            editingEntityIndex !== null ? saveEditEntity() : addEntity();
+        }
+
+        /*
+        * Returns all 5 values/characteristics of an entity
+        */
+        function readEntityForm() {
+            return normalizeEntity({
+                nom:                            document.getElementById('e-name').value.trim(),
+                population:            parseInt(document.getElementById('e-pop').value) || 0,
+                population_evolution:           document.getElementById('e-evol').value,
+                mobility:                       document.getElementById('e-mob').value === 'true',
+                agent_weight:                   document.getElementById('e-rsrc').value,
+            });
+        }
+
+        /*
+        * Adds the described entity to the model
+        */
+        function addEntity() {
+            const e = readEntityForm();
+
+            // Required name
+            if (!e.nom) { showToast('⚠ Name required', 'error'); return; }
+            
+            // Name validation: if already used = reject
+            if (model.entites.find(x => x.nom === e.nom)) { showToast('⚠ Name already used', 'error'); return; }
+            
+            model.entites.push(e);
+            clearEntityForm();
+            renderAll();
+            showToast('✓ Entity added');
+        }
+
+        /*
+        * Sets up the form to edit an entity
+        */
+        function editEntity(i) {
+            
+            const e = model.entites[i];
+            editingEntityIndex = i;
+
+            document.getElementById('e-name').value = e.nom;
+            document.getElementById('e-pop').value  = e.population;
+            document.getElementById('e-evol').value = e.population_evolution;
+            document.getElementById('e-mob').value  = e.mobility ? 'true' : 'false';
+            document.getElementById('e-rsrc').value = e.agent_weight;
+            
+            const btn = document.getElementById('e-submit-btn');
+
+            btn.textContent = '✓ Update';
+            btn.classList.remove('btn-primary');
+            btn.style.cssText = 'background:var(--warn);border-color:var(--warn);color:var(--bg)';
+            
+            document.getElementById('e-cancel-btn').style.display = 'inline-flex';
+            
+            renderEntityList();
+            
+            document.getElementById('e-name').focus();
+        }
+
+        /*
+        * Adds / Updates an entity
+        */
+        function saveEditEntity() {
+            const e = readEntityForm();
+
+            // Required name
+            if (!e.nom) { showToast('⚠ Name required', 'error'); return; }
+
+            // Name cannot contain "#" (reserved character for intra-type actions)
+            if (e.nom.includes("#")) { 
+                showToast('⚠ Name cannot contain an apostrophe (\#)', 'error');
+                return; 
+            }
+
+            const oldNom = model.entites[editingEntityIndex].nom;
+
+            if (model.entites.find((x, i) => x.nom === e.nom && i !== editingEntityIndex)) {
+                showToast('⚠ Name already used', 'error'); return;
+            }
+
+            // If the name changes, update references in actions
+            if (oldNom !== e.nom) {
+                model.actions.forEach(a => {
+                    if (a.from === oldNom) a.from = e.nom;
+                    if (a.to   === oldNom) a.to   = e.nom;
+                });
+            }
+
+            model.entites[editingEntityIndex] = e;
+            cancelEditEntity();
+            renderAll();
+            showToast('✓ Entity updated');
+        }
+
+        /*
+        * "Cancel entity editing" button
+        * Restores the default entity creation button
+        */
+        function cancelEditEntity() {
+            editingEntityIndex = null;
+            clearEntityForm();
+
+            const btn = document.getElementById('e-submit-btn');
+            btn.textContent = '+ Add Entity';
+            btn.classList.add('btn-primary');
+            btn.style.cssText = '';
+            
+            document.getElementById('e-cancel-btn').style.display = 'none';
+        }
+
+        /*
+        * Resets entity creation form fields
+        */
+        function clearEntityForm() {
+            ['e-name','e-pop'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('e-evol').value = 'fixe';
+            document.getElementById('e-mob').value  = 'false';
+            document.getElementById('e-rsrc').value = 'aucune';
+        }
+
+        /*
+        * Removes an entity from the model and its associated actions
+        */
+        function removeEntity(i) {
+            const nom = model.entites[i].nom;
+
+            // Cascade: remove all actions linked to this entity
+            const before = model.actions.length;
+            model.actions = model.actions.filter(a => a.from !== nom && a.to !== nom);
+            
+            const removed = before - model.actions.length;
+
+            if (editingEntityIndex === i) cancelEditEntity();
+            model.entites.splice(i, 1);
+            
+            renderAll();
+            showToast(`Entity removed${removed ? ` + ${removed} associated action(s)` : ''}`);
+        }
+
+        /*
+         * Updates the #entity-count counter and regenerates the HTML of #entity-list
+         * from the entities array. Displays an empty state if no entity exists.
+         */
+        function renderEntityList() {
+
+            const list = document.getElementById('entity-list');
+
+            document.getElementById('entity-count').textContent = model.entites.length;
+
+            // If no entity is defined, display empty state
+            if (!model.entites.length) {
+                list.innerHTML = '<div class="empty"><span>🧩</span>No entities defined</div>';
+                return;
+            }
+
+            list.innerHTML = model.entites.map((e, i) => {
+                const editing = editingEntityIndex === i;
+
+                return `<div class="entity-item" style="${editing ? 'border-color:var(--warn);background:rgba(251,191,36,0.06)' : ''}">
+                        
+                        <div>
+                            <div class="name">${e.nom} <span style="font-size:12px;color:var(--text-muted)">(${e.population})</span>
+                            ${editing ? '<span style="font-size:10px;color:var(--warn);margin-left:8px">✏️ editing</span>' : ''}
+                            </div>
+                            <div class="meta">
+                                <span>Growth: <b style="color:var(--text)">${e.population_evolution}</b></span>
+                                <span>Mobility: <b style="color:var(--text)">${e.mobility ? '✓' : '✗'}</b></span>
+                                <span>Resources: <b style="color:var(--text)">${e.agent_weight}</b></span>
+                            </div>
+                        </div>
+
+                        <div style="display:flex;gap:6px">
+                            <button class="btn btn-sm" onclick="editEntity(${i})" style="border-color:var(--warn);color:var(--warn)">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="removeEntity(${i})">✕</button>
+                        </div>
+
+                    </div>`;
+            }).join('');
+        }
+
+    // ===============================================
+    //  ACTIONS
+    // ===============================================
+    let editingActionIndex = null;
+
+        /*
+        * "Add / Update" action button
+        */
+        function submitAction() {
+            editingActionIndex !== null ? saveEditAction() : addAction();
+        }
+
+        /*
+        * Returns all 9 values/characteristics of an action
+        */
+        function readActionForm() {
+            return normalizeAction({
+                name:                           document.getElementById('a-name').value.trim(),
+                from:                           document.getElementById('a-from').value,
+                to:                             document.getElementById('a-to').value,
+                exchange_type:                  document.getElementById('a-echg').value,
+                information_granularity:        document.getElementById('a-gran').value,
+                spatial_range:                  document.getElementById('a-port').value,
+                natural_frequency:              document.getElementById('a-ryth').value,
+                interaction_type:               document.getElementById('a-inter').value,
+                required_predecessors:          document.getElementById('a-dep').value.split(',').map(s => s.trim()).filter(Boolean),
+            });
+        }
+
+        /*
+        * Adds the described action to the model
+        */
+        function addAction() {
+            const a = readActionForm();
+
+            if (!a.name || !a.from || !a.to) { showToast('⚠ Name, from and to are required', 'error'); return; }
+            
+            // Check if the name is already used
+            if (model.actions.find(x => x.name === a.name)) { showToast('⚠ Name already used', 'error'); return; }
+            
+            // Check that an intra-entity action follows the E -> E# format with E as the entity name
+            if (a.to.includes("#") && a.from !== a.to.replace("#", "")) { 
+                showToast('⚠ For an intra-entity interaction, "from" and "to" must have the same type.', 'error');               
+                return; 
+            }
+
+            model.actions.push(a);
+            
+            clearActionForm();
+            renderAll();
+            showToast('✓ Action added');
+        }
+
+
+        /*
+        * Sets up the form to edit an action
+        */
+        function editAction(i) {
+            
+            const a = model.actions[i];
+            editingActionIndex = i;
+
+            refreshActionEntitySelects();
+
+            document.getElementById('a-name').value  = a.name;
+            document.getElementById('a-from').value  = a.from;
+            document.getElementById('a-to').value    = a.to;
+            document.getElementById('a-echg').value  = a.exchange_type;
+            document.getElementById('a-gran').value  = a.information_granularity;
+            document.getElementById('a-port').value  = a.spatial_range;
+            document.getElementById('a-ryth').value  = a.natural_frequency;
+            document.getElementById('a-inter').value = a.interaction_type;
+            //document.getElementById('a-sens').value  = a.sens_attendu;
+            document.getElementById('a-dep').value   = a.required_predecessors.join(', ');
+
+            const btn = document.getElementById('a-submit-btn');
+            btn.textContent = '✓ Update';
+            btn.classList.remove('btn-primary');
+            btn.style.cssText = 'background:var(--warn);border-color:var(--warn);color:var(--bg)';
+            
+            document.getElementById('a-cancel-btn').style.display = 'inline-flex';
+            
+            renderActionList();
+            
+            document.getElementById('a-name').focus();
+        }
+
+        /*
+        * Updates the available options in the "from" and "to" fields for action entity selection
+        */ 
+        function refreshActionEntitySelects() {
+            
+            const opts_from = [
+                '<option value="self">self</option>',
+                ...model.entites.map(e => `<option value="${e.nom}">${e.nom}</option>`)
+            ].join('');
+
+            const opts_to = [
+                '<option value="self">self</option>',
+                ...model.entites.map(e => `<option value="${e.nom}">${e.nom}</option>`),
+                ...model.entites.map(e => `<option value="${e.nom}#">${e.nom}# (other instance)</option>`)
+            ].join('');
+
+            document.getElementById('a-from').innerHTML = '<option value="">— select —</option>' + opts_from;
+            document.getElementById('a-to').innerHTML   = '<option value="">— select —</option>' + opts_to;
+        }
+
+
+        /*
+        * Adds / updates an action
+        */
+        function saveEditAction() {
+            const a = readActionForm();
+
+            if (!a.name || !a.from || !a.to) { showToast('⚠ Name, from and to are required', 'error'); return; }
+
+            if (model.actions.find((x, i) => x.name === a.name && i !== editingActionIndex)) {
+                showToast('⚠ Name already used', 'error'); return;
+            }
+
+            // Check that an intra-entity action follows the E -> E# format with E as the entity name
+            if (a.to.includes("#") && a.from !== a.to.replace("#", "")) { 
+                showToast(`⚠ For an intra-entity interaction, "from" and "to" must have the same type.`, 'error'); 
+                return; 
+            }
+
+            model.actions[editingActionIndex] = a;
+            cancelEditAction();
+            renderAll();
+            showToast('✓ Action updated');
+        }
+
+        /*
+        * Cancels action editing
+        * Restores the default action creation button
+        */
+        function cancelEditAction() {
+            editingActionIndex = null;
+            clearActionForm();
+
+            const btn = document.getElementById('a-submit-btn');
+            btn.textContent = '+ Add Action';
+            btn.classList.add('btn-primary');
+            btn.style.cssText = '';
+            
+            document.getElementById('a-cancel-btn').style.display = 'none';
+        }
+
+        /*
+        * Resets action creation form fields
+        */
+        function clearActionForm() {
+            ['a-name','a-dep'].forEach(id => document.getElementById(id).value = '');
+
+            document.getElementById('a-from').value  = '';
+            document.getElementById('a-to').value    = '';
+            document.getElementById('a-echg').value  = 'valeur_num';
+            document.getElementById('a-gran').value  = 'presence_absence';
+            document.getElementById('a-port').value  = 'locale';
+            document.getElementById('a-ryth').value  = 'rare';
+            document.getElementById('a-inter').value = 'modification';
+        }
+
+        /*
+        * Removes an action from the model
+        */
+        function removeAction(i) {
+            
+            if (editingActionIndex === i) cancelEditAction();
+
+            model.actions.splice(i, 1);
+            renderAll();
+            showToast('Action removed');
+        }
+
+
+        /*
+         * Updates the #action-count counter and regenerates the HTML of #action-list
+         * from actions[]. Displays the empty state if no action exists.
+         */
+        function renderActionList() {
+
+            const list = document.getElementById('action-list');
+            
+            document.getElementById('action-count').textContent = model.actions.length;
+            
+            if (!model.actions.length) {
+                list.innerHTML =    `<div class="empty">
+                                        <span>⚡</span>
+                                        No actions defined
+                                    </div>`;
+                return;
+            }
+            
+            list.innerHTML = model.actions.map((a, i) => {
+                const editing = editingActionIndex === i;
+                
+                return `<div class="action-item" style="${editing ? 'border-color:var(--warn);background:rgba(251,191,36,0.06)' : ''}">
+
+                        <div style="flex:1">
+                            
+                            <div style="font-family:Syne,sans-serif;font-weight:700;color:var(--accent);font-size:13px;margin-bottom:6px">
+                                
+                                ${a.name}
+                                <span style="color:var(--text-muted);font-size:11px;font-family:Space Mono,monospace">${a.from} → ${a.to}</span>
+                                ${editing ? '<span style="font-size:10px;color:var(--warn);margin-left:8px">✏️ editing</span>' : ''}
+                            </div>
+                            
+                            <div class="tag-row">
+                                <span class="badge badge-blue">${a.natural_frequency}</span>
+                                <span class="badge badge-${a.interaction_type==='modification'?'red':'green'}">${a.interaction_type}</span>
+                                <span class="badge badge-purple">${a.spatial_range}</span>
+                                <span class="badge" style="border-color:var(--text-muted);color:var(--text-muted)">${a.exchange_type}</span>
+                            </div>
+
+                            ${a.required_predecessors.length
+                            ? `<div style="font-size:10px;color:var(--text-muted);margin-top:6px">↳ deps: ${a.required_predecessors.join(', ')}</div>`
+                            : ''}
+
+                        </div>
+                        <div style="display:flex;gap:6px">
+                            <button class="btn btn-sm" onclick="editAction(${i})" style="border-color:var(--warn);color:var(--warn)">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="removeAction(${i})">✕</button>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+
+
+
+
+
+    // ===============================================
+    //  GRAPH 1: Entities–Actions G=(E,A) — Cytoscape.js
+    // ===============================================
+    let cyInstance = null; 
+
+        function renderGraph() {
+
+            const container = document.getElementById('graph-canvas');
+
+            if (!entities.length) {
+                container.innerHTML = 
+                                    `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#64748b;font-family:Space Mono,monospace;font-size:13px">
+                                            No entities to display
+                                    </div>`;
+                renderDepGraph();
+                return;
+            }
+
+
+            // Calculate the average population per entity (to detect critical entities)
+            const avgPop = model.entites.reduce((sum, e) => sum + e.population, 0) / (model.entites.length || 1);
+
+            // -- Step 1: Build a map of all unique entities --
+            const entityMap = {};
+
+            // Add copies of all model entities
+            model.entites.forEach(e => { entityMap[e.nom] = {...e}; });
+
+
+            // Step 2: Add all entities that only come from actions (E#)
+            model.actions.forEach(a => {
+                [a.from, a.to].forEach(name => {
+                    if (!entityMap[name] && name !== 'self') {
+                        // Retrieve the entity "parent" by removing the #
+                        const baseName = name.replace(/#.*$/, '');
+                        const baseEnt = entityMap[baseName] || model.entites.find(e => e.nom === baseName);
+
+                        if (baseEnt) {
+                            // Copy characteristics
+                            entityMap[name] = {...baseEnt, nom: name};
+                        } else {
+                            // Fallback if entity cannot be found
+                            entityMap[name] = {
+                                nom: name,
+                                population: 0,
+                                mobility: false,
+                                agent_weight: 0,
+                                population_evolution: 0
+                            };
+                        }
+                    }
+                });
+            });
+
+
+            // Entity demand map initialized to 0
+            const solMap = {};        
+
+            Object.keys(entityMap).forEach(baseName => { solMap[baseName] = 0; });
+
+            // Increment the target entity demand by the source entity population
+            model.actions.forEach(a => {
+                
+                // Ignore actions on the same instance
+                if (a.to === 'self') return;
+
+                // Only consider high-frequency actions
+                if (!R_PLUS.includes(a.natural_frequency)) return;
+
+                const fromBase = a.from;
+
+                // Remove the potential # from the receiving entity
+                const toBase = a.to.replace(/#.*$/, '');
+
+                const fromEnt = entityMap[fromBase];
+
+                if (fromEnt && solMap[toBase] !== undefined) {
+                    solMap[toBase] += fromEnt.population; // source population
+                }
+            });
+
+            // Calculate the total number of instances in the model
+            const populationTotal = model.entites.reduce((sum, e) => sum + e.population, 0);
+
+            // Calculate average demand per entity divided by total model instances (to detect critical entities)
+            const avgSol = Object.values(solMap).reduce((s, v) => s + v, 0) / (populationTotal || 1);
+
+            // Properly destroy the previous instance
+            if (cyInstance) { cyInstance.destroy(); cyInstance = null; }
+
+            // Convert to array for Cytoscape
+            const entitiesArray = Object.values(entityMap);
+
+            // --- Step 2: Create nodes ---
+            const elements = entitiesArray.map(e => {
+
+                // An entity is critical if its population is below average and its demand is above average
+                const isCritical = e.population <= avgPop && (solMap[e.nom] || 0) > avgSol;
+
+
+                // Red if critical, purple otherwise
+                const nodeColor = isCritical ? 'rgba(239,68,68,0.95)' : 'rgba(167,139,250,0.01)';
+
+                // Transparent background
+                const bgColor = 'transparent';
+
+                return {
+                    group: 'nodes',
+                    data: {
+                        id: e.nom,
+                        label: `${e.nom}\n(${e.population})`,
+                        nodeColor,
+                        bgColor,                    
+                        borderWidth: isCritical ? 3 : 1.5,
+                        tooltip: `${e.nom} | Pop: ${e.population} | Mobil: ${e.mobility} | Évol: ${e.population_evolution} | Rsrc: ${e.agent_weight} | Sol: ${Math.round(solMap[e.nom]||0)}`
+                    }
+                };
+            });
+
+            const loopIndexMap = {};
+            
+            // --- Step 3: Create edges ---
+            model.actions.forEach((a, idx) => {
+                const sourceId = a.from;    
+                const targetId = a.to === 'self' ? a.from : a.to; // keep # if present
+                const isModif  = a.interaction_type === 'modification';
+                const isFreq   = R_PLUS.includes(a.natural_frequency);
+
+                // Loop readability management
+                let loopOffset = 40;
+                let edgeLoop = false;
+
+                // Self-loop
+                if (sourceId === targetId) {
+
+                    edgeLoop = true;
+
+                    // Increment its position
+                    loopIndexMap[sourceId] = (loopIndexMap[sourceId] || 0) + 1;
+
+                    // Its position is based on its index * 10
+                    loopOffset = 40 + (loopIndexMap[sourceId] - 1) * 10;
+                }
+
+                elements.push({
+                    group: 'edges',
+                    data: {
+                        id: `e-${idx}`,
+                        source: sourceId,
+                        target: targetId,
+                        label: a.name,
+                        
+                        looped: edgeLoop,  
+                        
+                        lineColor:  isModif ? '#ff4b6e' : '#00e5ff',
+                        lineStyle:  isModif ? 'solid' : 'dashed',
+
+                        lineWidth:  isFreq ? 3 : 1.5,
+                        
+                        arrowColor: isModif ? '#ff4b6e' : '#00e5ff',
+
+                        loopOffset, // self-loop offset
+
+                        tooltip: `${a.name}: ${a.from} → ${a.to} | ${a.natural_frequency} | ${a.interaction_type}`
+                    }
+                });
+            });
+
+            // ── Cytoscape instantiation ──
+            cyInstance = cytoscape({
+                
+                container,
+                elements,
+
+                layout: {
+                    name: 'cose',         
+                    animate: true,
+                    animationDuration: 500,
+                    nodeRepulsion: () => 8000,
+                    edgeElasticity: () => 100,
+                    idealEdgeLength: () => 120,
+                    gravity: 0.4,
+                    numIter: 1000,
+                    fit: true,
+                    padding: 40,
+                },
+                style: [
+                    {
+                        selector: 'node',
+                        // Graph visual styling and animation
+                        style: {
+                            'background-color':    'data(bgColor)',
+                            'border-color':        'data(nodeColor)',
+                            'border-width':        'data(borderWidth)',
+                            'label':               'data(label)',
+                            'text-valign':         'center',
+                            'text-halign':         'center',
+                            'color':               'data(nodeColor)',
+                            'font-family':         'Syne, sans-serif',
+                            'font-weight':         700,
+                            'font-size':           '11px',
+                            'text-wrap':           'wrap',
+                            'text-max-width':      '80px',
+                            'width':               70,
+                            'height':              70,
+                            'shape':               'ellipse',
+                        }
+                    },
+                    {
+                        // Node selection
+                        selector: 'node:selected',
+                        style: {
+                            'border-width': 4,
+                            'border-color': '#fbbf24',
+
+                            // LABEL
+                            'color': '#000',
+                            'font-size': '10px',
+
+                            // LABEL BACKGROUND
+                            'text-background-color': '#fff',
+                            'text-background-opacity': 1,
+                            'text-background-padding': '3px',
+                            'text-background-shape': 'roundrectangle',
+
+                            // VISUAL PRIORITY
+                            'z-index': 9999,
+                        }
+                    },
+
+                    {
+                        selector: 'edge',
+                        style: {
+                            'width':               'data(lineWidth)',
+                            'line-color':          'data(lineColor)',
+                            'line-style':          'data(lineStyle)',
+                            'target-arrow-color':  'data(arrowColor)',
+                            'target-arrow-shape':  'triangle',
+                            'arrow-scale':         1.2,
+                            'curve-style':         'bezier', 
+                            'label':               'data(label)',
+                            'font-family':         'Space Mono, monospace',
+                            'font-size':           '8px',
+                            'color':               'data(lineColor)',
+                            'text-rotation':       'autorotate',
+                            'text-margin-y':       -8,
+                            'opacity':             0.85,
+                        }
+                    },
+
+                    {
+                        // Edge selection
+                        selector: 'edge:selected',
+                        style: {
+                            'opacity': 1,
+                            'width': 4,
+
+                            // LABEL
+                            'color': '#000',
+                            'font-size': '10px',
+
+                            // LABEL BACKGROUND
+                            'text-background-color': '#fff',
+                            'text-background-opacity': 1,
+                            'text-background-padding': '3px',
+                            'text-background-shape': 'roundrectangle',
+
+                            // VISUAL PRIORITY
+                            'z-index': 9999,
+                        }
+                    },
+                    {
+                        // Self-loop edges
+                        selector: 'edge[looped]',
+                        style: {
+                            'loop-direction':  '0deg',
+                            'loop-sweep':      '45deg',
+                            'control-point-step-size': 'data(loopOffset)',
+                        }
+                    },
+                ],
+                userZoomingEnabled:   true,
+                userPanningEnabled:   true,
+                boxSelectionEnabled:  false,
+                autolock:             false,
+            });
+
+            // Hover tooltip displaying all information related to the hovered entity
+            cyInstance.on('mouseover', 'node', e => {
+                container.title = e.target.data('tooltip');
+            });
+            
+            // Hover tooltip displaying all information related to the hovered action
+            cyInstance.on('mouseover', 'edge', e => {
+                container.title = e.target.data('tooltip');
+            });
+
+            renderDepGraph();
+        }
+
+    // ===============================================
+    //  GRAPH 2: Action Dependencies GA=(A,D)
+    // ===============================================
+    let cyDepInstance = null;
+
+        function renderDepGraph() {
+            const container = document.getElementById('dep-canvas');
+
+            if (!model.actions.length) {
+                container.innerHTML = 
+                                `<div style="text-align:center; color:#64748b; font-family:Space Mono, monospace; font-size:13px; padding:20px;">
+                                    No actions defined
+                                </div>`;
+                return;
+            }
+
+            const elements = [];
+
+            const nameSet = new Set(model.actions.map(a => a.name));
+
+            model.actions.forEach(a => {
+
+                // No predecessors?
+                const isRoot = a.required_predecessors.length === 0;
+
+                // For each action, check whether other actions depend on it
+                const hasDependents = model.actions.some(act => act.required_predecessors.includes(a.name));
+
+                // No dependents?
+                const isLeaf = !hasDependents;
+
+                // Determine color
+                const borderColor = isRoot ? '#34d399' : isLeaf ? '#ff4b6e' : '#00e5ff';
+                const bgColor = isRoot ? 'rgba(52,211,153,0.2)' : isLeaf ? 'rgba(255,75,110,0.2)' : 'rgba(0,229,255,0.1)';
+
+                elements.push({
+                    group: 'nodes',
+                    data: {
+                        id: a.name,
+                        label: a.name,
+                        borderColor,
+                        bgColor,
+                        tooltip: `${a.name}\nType: ${a.interaction_type}\nRhythm: ${a.natural_frequency}\nDependencies: ${a.required_predecessors.join(', ') || 'none'}`
+                    }
+                });
+            });
+
+            // Edges
+            model.actions.forEach(a => {
+                a.required_predecessors.forEach(dep => {
+                    if (nameSet.has(dep)) {
+                        elements.push({
+                            group: 'edges',
+                            data: {
+                                id: `e-${dep}->${a.name}`,
+                                source: dep,
+                                target: a.name,
+                                lineColor: '#a78bfa',
+                                lineWidth: 1.5,
+                                arrowColor: '#a78bfa',
+                                label: '',
+                                tooltip: `${dep} → ${a.name}`
+                            }
+                        });
+                    }
+                });
+            });
+
+            // -- Destroy previous instance
+            if (cyDepInstance) {
+                cyDepInstance.destroy();
+                cyDepInstance = null;
+            }
+
+            // -- Cytoscape instantiation --
+            cyDepInstance = cytoscape({
+                container,
+                elements,
+                layout: {
+                    name: 'breadthfirst',   // native hierarchical layout
+                    directed: true,
+                    padding: 50,
+                    spacingFactor: 1.5,
+                },
+                style: [
+                    {
+                        selector: 'node',
+                        style: {
+                            'background-color': 'data(bgColor)',
+                            'border-color': 'data(borderColor)',
+                            'border-width': 1.5,
+                            'label': 'data(label)',
+                            'text-valign': 'center',
+                            'text-halign': 'center',
+                            'color': '#000',
+                            'font-family': 'Space Mono, monospace',
+                            'font-size': 10,
+                            'width': 140,
+                            'height': 36,
+                            'shape': 'round-rectangle',
+                        }
+                    },
+                    {
+                        selector: 'node:selected',
+                        style: {
+                            'border-width': 3,
+                            'border-color': '#fbbf24',
+                        }
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'width': 'data(lineWidth)',
+                            'line-color': 'data(lineColor)',
+                            'target-arrow-color': 'data(arrowColor)',
+                            'target-arrow-shape': 'triangle',
+                            'curve-style': 'bezier',
+                            'opacity': 0.8,
+                        }
+                    },
+
+                    {
+                        selector: 'edge:selected',
+                        style: {
+                            'width': 3,
+                            'line-color': '#fbbf24',
+                            'target-arrow-color': '#fbbf24',
+                            'opacity': 1
+                        }
+                    }
+                ],
+
+                userZoomingEnabled: true,
+                userPanningEnabled: true,
+                boxSelectionEnabled: false,
+                autolock: false,
+            });
+
+            // Hover tooltip displaying action information
+            cyDepInstance.on('mouseover', 'node', e => {
+                container.title = e.target.data('tooltip');
+            });
+
+            // Hover tooltip displaying the edge origin and destination
+            cyDepInstance.on('mouseover', 'edge', e => {
+                container.title = e.target.data('tooltip');
+            });
+        }
+
+
+
+
+        // ===============================================
+        // RULES
+        // ===============================================
+
+        const defaultRules = [
+
+            // ==================================
+            // NODE RULES (entities)
+            // ==================================
+
+            {
+                id: 'passive_entity',
+                name: 'Passive Entity',
+                enabled: true,
+                cible: 'noeud',
+                facteur: 0.4,
+                condition: '∀ a.from = ei ⟹ consultation ∧ ∄ a.to=ei with modification',
+                conclusion: '⟹ Passive_Entity(ei) — free replication',
+                desc: 'Entity that only performs read operations and is never modified — can be freely replicated without synchronization.',
+                fn: (e, ctx) => {
+                    const actionsFrom = model.actions.filter(a => a.from === e.nom);
+                    const actionsTo = model.actions.filter(a => a.to.replace(/#.*$/, '') === e.nom);
+                    
+                    if (actionsFrom.length === 0 && actionsTo.length === 0) return false;
+                    
+                    return (
+                        actionsFrom.every(a => a.interaction_type === 'consultation') &&
+                        !actionsTo.some(a => a.interaction_type === 'modification')
+                    );
+                },
+            },
+
+            {
+                id: 'free_entity',
+                name: 'Free Entity',
+                enabled: true,
+                cible: 'noeud',
+                facteur: 0.8,
+                condition: 'sol(ei) < sol̄ ∧ sol(ei) > 0',
+                conclusion: '⟹ Free_Entity(ei)',
+                desc: 'Weakly solicited entity — can be freely distributed.',
+                fn: (e, ctx) =>
+                    (ctx.solMap[e.nom] || 0) <= ctx.avgSol &&
+                    (ctx.solMap[e.nom] || 0) >= 0,
+            },
+
+            {
+                id: 'overloaded_entity',
+                name: 'Overloaded Entity',
+                enabled: true,
+                cible: 'noeud',
+                facteur: 1.6,
+                condition: 'sol(ei) > sol̄ ∧ sol(ei) > 0',
+                conclusion: '⟹ Overloaded_Entity(ei)',
+                desc: 'Highly solicited entity — permanent structural bottleneck.',
+                fn: (e, ctx) =>
+                    (ctx.solMap[e.nom] || 0) > ctx.avgSol &&
+                    (ctx.solMap[e.nom] || 0) > 0,
+            },
+
+            {
+                id: 'critical_point',
+                name: 'Critical Point',
+                enabled: true,
+                cible: 'noeud',
+                facteur: 1.8,
+                condition: 'pop(ei) ≤ pop̄ ∧ sol(ei) > sol̄ ∧ sol(ei) > 0',
+                conclusion: '⟹ Critical_Point(ei)',
+                desc: 'Under-represented but highly solicited entity — potential bottleneck, replication recommended.',
+                fn: (e, ctx) =>
+                    e.population <= ctx.avgPop &&
+                    (ctx.solMap[e.nom] || 0) > ctx.avgSol &&
+                    (ctx.solMap[e.nom] || 0) > 0,
+            },
+
+            {
+                id: 'critical_decreasing_entity',
+                name: 'Critical Decreasing Entity',
+                enabled: true,
+                cible: 'noeud',
+                facteur: 2.0,
+                condition: 'pop(ei) ≤ pop̄ ∧ sol(ei) > sol̄ ∧ evol(ei) = decreasing',
+                conclusion: '⟹ Critical_Decreasing_Entity(ei)',
+                desc: 'Under-represented, highly solicited entity with decreasing population — bottleneck risk will increase.',
+                fn: (e, ctx) =>
+                    e.population <= ctx.avgPop &&
+                    e.population_evolution === 'decreasing' &&
+                    (ctx.solMap[e.nom] || 0) > ctx.avgSol &&
+                    (ctx.solMap[e.nom] || 0) > 0,
+            },
+
+            {
+                id: 'unique_critical_entity',
+                name: 'Unique Critical Entity',
+                enabled: true,
+                cible: 'noeud',
+                facteur: 2.2,
+                condition: 'pop(ei) = 1 ∧ evol(ei) = fixed ∧ sol(ei) > sol̄',
+                conclusion: '⟹ Unique_Critical_Entity(ei)',
+                desc: 'Unique entity with fixed evolution and high demand — maximum critical situation.',
+                fn: (e, ctx) =>
+                    e.population === 1 &&
+                    e.population_evolution === 'fixed' &&
+                    (ctx.solMap[e.nom] || 0) > ctx.avgSol &&
+                    (ctx.solMap[e.nom] || 0) > 0,
+            },
+
+            {
+                id: 'load_imbalance_risk',
+                name: 'Load Imbalance Risk',
+                enabled: true,
+                cible: 'noeud',
+                facteur: 1.3,
+                condition: 'evol(ei) !∈ {increasing, decreasing, variable} ∧ pop(ei) > pop̄',
+                conclusion: '⟹ Load_Imbalance_Risk(ei)',
+                desc: 'Large number of instances with unstable population — risk of dynamic load imbalance.',
+                fn: (e, ctx) =>
+                    !['fixed'].includes(e.population_evolution) &&
+                    e.population > ctx.avgPop,
+            },
+
+            {
+                id: 'explosive_population_growth',
+                name: 'Explosive Population Growth',
+                enabled: true,
+                cible: 'noeud',
+                facteur: 1.4,
+                condition: 'evol(ei) = increasing ∧ pop(ei) ≥ pop̄',
+                conclusion: '⟹ Explosive_Population_Growth(ei)',
+                desc: 'Growing population above average — anticipate repartitioning.',
+                fn: (e, ctx) =>
+                    e.population_evolution === 'increasing' &&
+                    e.population >= ctx.avgPop ,
+            },
+
+            {
+                id: 'skeleton_migration',
+                name: 'Skeleton Migration',
+                enabled: true,
+                cible: 'noeud',
+                facteur: 1.4,
+                condition: 'rsrc(ei) ∈ {moderate, high}',
+                conclusion: '⟹ Skeleton_Migration(ei)',
+                desc: 'Entity with many resources — migrate only a lightweight skeleton.',            
+                fn: (e, ctx) =>
+                    ['moderate', 'high'].includes(e.agent_weight),
+            },
+
+            {
+                id: 'hub_entity',
+                name: 'Hub Entity',
+                enabled: true,
+                cible: 'noeud',
+                facteur: 1.5,
+                condition: 'deg(ei) > 2 × deḡ',
+                conclusion: '⟹ Hub_Entity(ei)',
+                desc: 'Entity involved in significantly more actions than average — high structural centrality.',
+                fn: (e, ctx) => {
+                    const deg = model.actions.filter(a =>
+                        a.from === e.nom || a.to.replace(/#.*$/, '') === e.nom
+                    ).length;
+
+                    const avgDeg = (model.actions.length * 2) / (model.entites.length || 1);
+                    return deg > 2 * avgDeg;
+               },
+            },
+
+        // ==================================
+        // EDGE RULES (actions)
+        // ==================================
+
+            {
+                id: 'high_effective_frequency',
+                name: 'High Effective Frequency',
+                enabled: true,
+                cible: 'arete',
+                facteur: 1.4,
+                condition: 'ryth ∈ R⁺ ∧ pop(from) ≥ pop̄',
+                conclusion: '⟹ High_Effective_Frequency(aij)',
+                desc: 'Frequent action from a highly populated entity — high message volume.',
+                fn: (a, ctx) => {
+                    const from = ctx.entMap[a.from];
+                    return (
+                        R_PLUS.includes(a.natural_frequency) &&
+                        from &&
+                        from.population >= ctx.avgPop
+                    );
+                },
+            },
+
+            {
+                id: 'expensive_communication',
+                name: 'Expensive Communication',
+                enabled: true,
+                cible: 'arete',
+                facteur: 1.6,
+                condition: 'port ≠ locale ∧ ryth ∈ R⁺ ∧ echg ≠ valeur_num',
+                conclusion: '⟹ Expensive_Communication(aij)',
+                desc: 'Non-local frequent action with significant data exchange — high communication cost.',
+                fn: (a, ctx) =>
+                    a.spatial_range !== 'local' &&
+                    R_PLUS.includes(a.natural_frequency) &&
+                    a.exchange_type !== 'numeric_value',
+            },
+
+            {
+                id: 'frequent_heavy_data_exchange',
+                name: 'Frequent Heavy Data Exchange',
+                enabled: true,
+                cible: 'arete',
+                facteur: 1.6,
+                condition: 'echg = bloc_ressource ∧ ryth ∈ R⁺',
+                conclusion: '⟹ Frequent_Heavy_Data_Exchange(aij)',
+                desc: 'Frequent resource block transfer — high network cost, consider reference-based transfer.',
+                fn: (a, ctx) =>
+                    a.exchange_type === 'resource_block'&&
+                    R_PLUS.includes(a.natural_frequency),
+            },
+
+            {
+                id: 'possible_concurrent_write_conflict',
+                name: 'Possible Concurrent Write Conflict',
+                enabled: true,
+                cible: 'arete',
+                facteur: 1.7,
+                conclusion: '⟹ Possible_Concurrent_Write_Conflict(to)',
+                desc: 'Two entities frequently modify the same under-represented target — possible write conflict.',
+                fn: (a, ctx) => {
+                    if (a.interaction_type !== 'modification') return false;
+                    if (!R_PLUS.includes(a.natural_frequency)) return false;
+                    
+                    const toBase = a.to.replace(/#.*$/, '');
+                    const toEnt = ctx.entMap[toBase];
+                    
+                    if (!toEnt || toEnt.population >= ctx.avgPop) return false;
+                    
+                    return model.actions.some(other =>
+                        other.name !== a.name &&
+                        other.interaction_type === 'modification' &&
+                        R_PLUS.includes(other.natural_frequency) &&
+                        other.to.replace(/#.*$/, '') === toBase &&
+                        other.from !== a.from
+                    );
+                },        
+            },
+
+
+            {
+                id: 'multiple_concurrent_read_write_accesses',
+                name: 'Multiple Concurrent Read/Write Accesses',
+                enabled: true,
+                cible: 'arete',
+                facteur: 1.4,
+                conclusion: '⟹ Multiple_Concurrent_Read_Write_Accesses(to)',
+                desc: 'Under-represented entity frequently read and modified — possible concurrent access.',
+                fn: (a, ctx) => {
+                    if (a.interaction_type !== 'consultation') return false;
+
+                    const toBase = a.to.replace(/#.*$/, '');
+                    const toEnt = ctx.entMap[toBase];
+                    
+                    if (!toEnt || toEnt.population >= ctx.avgPop) return false;
+                    
+                    return model.actions.some(other =>
+                        other.interaction_type === 'modification' &&
+                        R_PLUS.includes(other.natural_frequency) &&
+                        other.to.replace(/#.*$/, '') === toBase
+                    );
+                },
+            },
+
+            {
+                id: 'frequent_long_distance_interaction',
+                name: 'Frequent Long-Distance Interaction',
+                enabled: true,
+                cible: 'arete',
+                facteur: 1.5,
+                condition: 'port = global ∧ ryth ∈ R⁺',
+                conclusion: '⟹ Frequent_LongDistance_Interaction(aij)',
+                desc: 'Frequent global action — potentially high cost depending on partitioning.',
+                fn: (a, ctx) =>
+                    a.spatial_range === 'global' &&
+                    R_PLUS.includes(a.natural_frequency),
+            },
+        ];
+
+    let rules = defaultRules.map(r => ({ ...r }));
+
+        /*
+         * Generates the HTML for each rule with its toggle, condition, and conclusion
+         */
+        function renderRules() {
+            const container = document.getElementById('rules-list');
+            
+            container.innerHTML = rules.map((r, i) => `
+                <div class="rule-item ${r.enabled ? 'enabled' : 'disabled'}">                
+                    <div class="rule-header">
+                        <div>                        
+                            <div class="rule-name">${r.name} 
+                                <span class="badge badge-${r.cible==='arete'?'blue':r.category==='Optimisation'?'purple':'red'}" style="margin-left:8px">${r.cible==='arete'?'Action':'Entity'}</span>
+                            </div>                            
+                            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${r.desc}</div>
+                        </div>
+                        <label class="toggle"><input type="checkbox" ${r.enabled?'checked':''} onchange="toggleRule(${i}, this.checked)">                    
+                        <span class="toggle-slider"></span></label>                
+                    </div>
+                    <div class="rule-condition">
+                        <span style="color:var(--text-muted)">IF</span> ${r.condition}<br>
+                        <span style="color:var(--accent4)">${r.conclusion}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+
+        /*
+         * Toggle ON/OFF for each rule in the list
+         */
+        function toggleRule(i, val) {
+            rules[i].enabled = val;
+            renderRules();
+        }
+
+
+    // ===============================================
+    //  RULE ANALYSIS
+    // ===============================================
+
+        /*
+         * Builds entity solicitation metrics and averages
+         */
+        function buildContext() {
+
+            const avgPop = model.entites.reduce((sum, e) => sum + e.population, 0) / (model.entites.length || 1);
+
+            const entMap = {};
+            model.entites.forEach(e => { entMap[e.nom] = e; });
+
+            const solMap = {};
+            model.entites.forEach(e => { solMap[e.nom] = 0; });
+
+            model.actions.forEach(a => {
+                const fromEnt = entMap[a.from];
+                const toName = a.to.replace("#", "");
+
+                if (R_PLUS.includes(a.natural_frequency) && fromEnt && solMap[toName] !== undefined) {
+                    solMap[toName] += fromEnt.population;
+                }
+            });
+
+            const populationTotal = model.entites.reduce((sum, e) => sum + e.population, 0);
+            const avgSol = Object.values(solMap).reduce((s, v) => s + v, 0) / (populationTotal || 1);
+
+            return { avgPop, avgSol, solMap, entMap };
+        }
+
+        /*
+         * Analysis function
+         */
+        function runAnalysis() {
+
+            // Build metrics
+            const ctx = buildContext();
+
+            const recs = [];
+
+            // Entity rules
+            rules.filter(r => r.enabled && r.cible == 'noeud').forEach(rule => {
+                entities.forEach(e => {
+                    if (rule.fn(e, ctx)) {
+                        recs.push({ rule, subject: e.nom, type: 'entity' });
+                    }
+                });
+            });
+
+            // Action rules
+            rules.filter(r => r.enabled && r.cible === 'arete').forEach(rule => {
+                actions.forEach(a => {
+                    if (a.to !== 'self' && rule.fn(a, ctx)) {
+                        recs.push({ rule, subject: "[" + a.from + " ⟹ " + a.to + "](" + a.name + ")", type: 'action', action: a });
+                    }
+                });
+            });
+
+            /* Global distribution cost */
+            // Global cost: calculation of critical and neutral action counts
+            const Ccritique = actions.filter(a => a.spatial_range !== 'locale' || R_PLUS.includes(a.natural_frequency));
+            const Cneutre = actions.filter(a => a.spatial_range === 'locale' && R_MINUS.includes(a.natural_frequency));
+
+            let globalRec = null;
+
+            if (Ccritique.length === 0) {
+
+                globalRec = { 
+                    level: 'good', 
+                    icon: '✅', 
+                    title: 'No communication overhead distribution', 
+                    desc: `No critical edge detected. |Ccritique| = 0 — distribution can be achieved without significant communication cost.`, 
+                    rule: '|Ccritique| = ∅ ⟹ no communication overhead distribution' 
+                };
+
+            } else if (Ccritique.length < Cneutre.length) {
+
+                globalRec = { 
+                    level: 'warn', 
+                    icon: '⚠️', 
+                    title: 'Affordable distribution', 
+                    desc: `${Ccritique.length} critical action(s) vs ${Cneutre.length} neutral action(s). Distribution is possible with moderate coordination.`, 
+                    rule: '|Ccritique| < |Cneutre| ⟹ affordable distribution' 
+                };
+
+            } else if (actions.length > 0) {
+
+                globalRec = { 
+                    level: 'critical', 
+                    icon: '🔴', 
+                    title: 'Increased coordination required', 
+                    desc: `${Ccritique.length} critical action(s) ≥ ${Cneutre.length} neutral action(s). Distribution requires stronger synchronization and careful partitioning.`, 
+                    rule: '|Ccritique| ≥ |Cneutre| ⟹ increased coordination' 
+                };
+            }
+        
+
+        // ===============================================
+        // GLOBAL RULE STATISTICS
+        // ===============================================
+
+        // Statistics
+        const criticalRules = ['critical_point','hotspot','expensive_communication','hub_entity','goulot_temporel','frequent_heavy_data_exchange'];
+        criticalRules.push('critical_decreasing_entity','unique_critical_entity');
+
+        const warningRules  = ['load_imbalance_risk','replication_recommandee','explosive_population_growth'];
+        warningRules.push('overloaded_entity','high_effective_frequency','possible_concurrent_write_conflict','multiple_concurrent_read_write_accesses','frequent_long_distance_interaction"');
+
+        const goodRules     = ['free_entity','passive_entity'];
+
+        const optimizationRules = ['push_periodique','intermediaire_binaire','skeleton_migration','broadcast','affinite_forte','parallelisme_potentiel'];
+
+        const critCount = recs.filter(r => criticalRules.includes(r.rule.id)).length;
+        const warnCount = recs.filter(r => warningRules.includes(r.rule.id)).length;
+        const goodCount = recs.filter(r => goodRules.includes(r.rule.id)).length;
+        const optCount = recs.filter(r => optimizationRules.includes(r.rule.id)).length;
+
+        document.getElementById('rec-stats').innerHTML = `
+            <div class="stat-card">
+                <div class="stat-val" style="color:var(--critical)">${critCount}</div>
+                <div class="stat-label">Critical Alerts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" style="color:var(--warn)">${warnCount}</div>
+                <div class="stat-label">Warnings</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" style="color:var(--accent4)">${goodCount}</div>
+                <div class="stat-label">Free Elements</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" style="color:var(--accent3)">${optCount}</div>
+                <div class="stat-label">Optimizations</div>
+            </div>
+        `;
+
+        if (!recs.length && !globalRec) {
+            document.getElementById('rec-list').innerHTML = `<div class="empty">
+                                                                <span>🔍</span>
+                                                                No recommendations generated. Add entities and actions.
+                                                            </div>`;
+            return;
+        }
+
+
+        const colorMap = {
+            critical_point: 'critical', hotspot: 'critical', expensive_communication: 'critical', frequent_heavy_data_exchange: 'critical', hub_entity: 'critical', goulot_temporel: 'critical',
+            load_imbalance_risk: 'warn', replication_recommandee: 'warn', explosive_population_growth: 'warn',
+            free_entity: 'good', passive_entity: 'good',
+            push_periodique: 'good', intermediaire_binaire: 'good', skeleton_migration: 'good', broadcast: 'good',
+            affinite_forte: 'opt', parallelisme_potentiel: 'opt',
+        };
+
+
+        const iconMap = {
+            critical_point: '🔴', hotspot: '🔥', expensive_communication: '⚡', frequent_heavy_data_exchange: '💥', hub_entity: '📈', goulot_temporel: '⏱️',
+            load_imbalance_risk: '⚠️', replication_recommandee: '📋', explosive_population_growth: '💣',
+            free_entity: '✅', passive_entity: '🟢',
+            push_periodique: '📡', intermediaire_binaire: '🔀', skeleton_migration: '🏗️', broadcast: '📢',
+            affinite_forte: '🤝', parallelisme_potentiel: '🔗',
+        };
+
+
+        // Build HTML displaying distribution feasibility and rule evaluation
+        const html = [
+            globalRec ? `
+                <div class="rec-item ${globalRec.level}">
+                    <div class="rec-icon">${globalRec.icon}</div>
+                    <div class="rec-body">
+                        <div class="rec-title">Global Analysis — ${globalRec.title}</div>
+                        <div class="rec-desc">${globalRec.desc}</div>
+                        <div class="rec-rule">Rule: ${globalRec.rule}</div>
+                    </div>
+                </div>
+                ` : '',
+
+            ...recs.map((rec, i) => {
+                const level = colorMap[rec.rule.id] || 'warn';
+                const icon = iconMap[rec.rule.id] || '🔍';
+
+                const extra = rec.type === 'action' && rec.action ?
+                    `<div style="margin-top:6px;font-size:11px;color:var(--text-muted)">
+                        ${rec.action.from} → ${rec.action.to} · ${rec.action.natural_frequency} · ${rec.action.interaction_type} · ${rec.action.spatial_range}
+                    </div>` : '';
+
+                return `
+                    <div class="rec-item ${level}" style="animation-delay:${i*0.06}s">
+                        <div class="rec-icon">${icon}</div>
+                        <div class="rec-body">
+                            <div class="rec-title">${rec.rule.name} — <em>${rec.subject}</em></div>
+                            <div class="rec-desc">${rec.rule.desc}</div>
+                            ${extra}
+                            <div class="rec-rule">Rule: ${rec.rule.condition} ${rec.rule.conclusion}</div>
+                        </div>
+                    </div>`;
+            })
+        ].filter(Boolean).join('');
+        document.getElementById('rec-list').innerHTML = html;
+    }
+
+    // ===============================================
+    //  Loading the foraging model
+    // ===============================================
+
+    /*
+     * Add the predefined foraging model
+     * 40×40 grid, one Pheromone per cell, 10 ants, 50 food units
+     */
+
+        function loadForagingModel() {
+            model = {
+                entites: [
+                    { nom: 'Ant',       population: 10,   population_evolution: 'fixed',    mobility: true,  agent_weight: 'low' },
+                    { nom: 'Food',      population: 50,   population_evolution: 'variable', mobility: false, agent_weight: 'low' },
+                    { nom: 'Pheromone', population: 1600, population_evolution: 'fixed',    mobility: false, agent_weight: 'low' },
+                    { nom: 'Nest',      population: 1,    population_evolution: 'fixed',    mobility: false, agent_weight: 'low' },
+                ],
+                actions: [
+
+                    // a1
+                    { name: 'perceive_food', from: 'Ant', to: 'Food', exchange_type: 'resource_block', information_granularity: 'presence_absence', spatial_range: 'local', natural_frequency: 'continuous', interaction_type: 'consultation', required_predecessors: [] },
+
+                    // a2
+                    { name: 'perceive_pheromone', from: 'Ant', to: 'Pheromone', exchange_type: 'numeric_value', information_granularity: 'precise_value', spatial_range: 'local', natural_frequency: 'continuous', interaction_type: 'consultation', required_predecessors: [] },
+
+                    // a3
+                    { name: 'orient_to_nest', from: 'Ant', to: 'Nest', exchange_type: 'position_vector', information_granularity: 'precise_value', spatial_range: 'global', natural_frequency: 'frequent', interaction_type: 'consultation', required_predecessors: [] },
+
+                    // a4
+                    { name: 'move', from: 'Ant', to: 'self', exchange_type: 'position_vector', information_granularity: 'precise_value', spatial_range: 'local', natural_frequency: 'continuous', interaction_type: 'modification', required_predecessors: ['perceive_food', 'perceive_pheromone', 'orient_to_nest'] },
+
+                    // a5
+                    { name: 'take_food', from: 'Ant', to: 'Food', exchange_type: 'resource_block', information_granularity: 'presence_absence', spatial_range: 'local', natural_frequency: 'occasional', interaction_type: 'modification', required_predecessors: ['move'] },
+
+                    // a6
+                    { name: 'deposit_food', from: 'Ant', to: 'Nest', exchange_type: 'resource_block', information_granularity: 'precise_value', spatial_range: 'local', natural_frequency: 'occasional', interaction_type: 'modification', required_predecessors: ['take_food'] },
+
+                    // a7
+                    { name: 'deposit_pheromone', from: 'Ant', to: 'Pheromone', exchange_type: 'numeric_value', information_granularity: 'precise_value', spatial_range: 'local', natural_frequency: 'frequent', interaction_type: 'modification', required_predecessors: ['take_food'] },
+
+                    // a8
+                    { name: 'evaporate', from: 'Pheromone', to: 'self', exchange_type: 'numeric_value', information_granularity: 'precise_value', spatial_range: 'local', natural_frequency: 'continuous', interaction_type: 'modification', required_predecessors: ['deposit_pheromone'] },
+
+                    // a9
+                    { name: 'diffuse', from: 'Pheromone', to: 'Pheromone#', exchange_type: 'numeric_value', information_granularity: 'precise_value', spatial_range: 'local', natural_frequency: 'continuous', interaction_type: 'modification', required_predecessors: ['evaporate'] },
+                ]
+            };
+
+            cancelEditEntity();
+            cancelEditAction();
+            renderAll();
+            showToast('✅ Foraging model loaded!');
+        }
+    renderRules();
+</script>
+</body>
+</html>
